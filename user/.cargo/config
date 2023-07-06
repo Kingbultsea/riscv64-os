@@ -3,5 +3,9 @@ target = "riscv64gc-unknown-none-elf"
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = [
+# 告知链接器使用src/linker.ld的链接脚本文件，
+# -Cforce-frame-pointers=yes用于调试，强制生成帧指针。帧指针是一种在函数调用中维护函数调用链的机制，它在调试和异常处理中非常有用，即fp（x8 或者叫 s0）
+# 这样才会避免 fp 相关指令被编译器优化掉 
+# 随后，可以使用 rust-objdump 工具反汇编内核或者应用程序可执行文件，并找到某个函数的入口
     "-Clink-args=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"
 ]
