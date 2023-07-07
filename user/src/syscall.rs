@@ -6,6 +6,7 @@ const SYSCALL_YIELD: usize = 124;
 
 // s0 -> s11函数是保存寄存器
 // s0是sp寄存器，用于debugger
+// https://jborza.com/post/2021-05-11-riscv-linux-syscalls/
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
     unsafe {

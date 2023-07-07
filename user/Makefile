@@ -19,6 +19,9 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 elf: $(APPS)
 	@python3 build.py
 
+# 转换所有文件为二进制文件
+# foreach 循环，它会遍历变量 ELFS 中的每个 ELF 文件路径，并执行循环体中的命令。
+# $(elf)当前迭代的文件
 binary: elf
 	$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 

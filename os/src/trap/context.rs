@@ -1,5 +1,5 @@
 use riscv::register::sstatus::{self, Sstatus, SPP};
-/// Trap Context
+/// Trap之前的栈，详细可以去看trap.S
 #[repr(C)]
 pub struct TrapContext {
     /// general regs[0..31]

@@ -43,7 +43,7 @@ global_asm!(include_str!("entry.asm"));
 // 条件编译等高级特性。预处理器将处理这些指令，并生成最终的汇编代码。
 global_asm!(include_str!("link_app.S"));
 
-/// clear BSS segment
+/// 内核需要bss初始化为0,，bss用于储存未初始化的全局或静态变量
 fn clear_bss() {
     extern "C" {
         fn sbss();
