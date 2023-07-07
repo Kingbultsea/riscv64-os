@@ -11,6 +11,7 @@ for app in apps:
     # 截取从字符串开头到第一个出现的点号（.）之前的部分，cargo build --bin xxxx  不需要.后缀
     app = app[:app.find('.')]
     lines = []
+    # 用于恢复被修改的linker
     lines_before = []
     with open(linker, 'r') as f:
         for line in f.readlines():

@@ -37,7 +37,10 @@ pub mod syscall;
 pub mod task;
 pub mod trap;
 
+// .asm 文件则通常是纯粹的原始汇编文件，不包含预处理器指令。这种文件直接包含原始的汇编指令，没有经过额外的处理或转换。
 global_asm!(include_str!("entry.asm"));
+// .S 文件中可以包含预处理指令（如 #include 和 #define），这意味着该文件将通过预处理器进行处理，并允许使用宏定义、
+// 条件编译等高级特性。预处理器将处理这些指令，并生成最终的汇编代码。
 global_asm!(include_str!("link_app.S"));
 
 /// clear BSS segment

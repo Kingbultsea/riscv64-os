@@ -25,8 +25,6 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 # Disassembly
 DISASM ?= -x
 
-# 在构建build目标前，需先构建env目标 
-# $(KERNEL_BIN) 是要构建的目标文件。它表示构建 $(KERNEL_BIN) 文件作为 build 目标的结果
 build: env $(KERNEL_BIN)
 
 # 添加环境所需要的依赖
@@ -58,6 +56,7 @@ clean:
 disasm: kernel
 	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) | less
 
+# 使用 > 运算符表示重定向输出到文件
 disasm-vim: kernel
 	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) > $(DISASM_TMP)
 	@vim $(DISASM_TMP)
