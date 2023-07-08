@@ -3,6 +3,7 @@ use riscv::register::sstatus::{self, Sstatus, SPP};
 #[repr(C)]
 pub struct TrapContext {
     /// general regs[0..31]
+    /// usize在riscv64中 是64位
     pub x: [usize; 32],
     /// CSR sstatus      
     pub sstatus: Sstatus,

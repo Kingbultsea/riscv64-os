@@ -58,6 +58,8 @@ pub fn get_num_app() -> usize {
     extern "C" {
         fn _num_app();
     }
+
+    //当前内存块为3
     unsafe { (_num_app as usize as *const usize).read_volatile() }
 }
 
@@ -69,9 +71,17 @@ pub fn load_apps() {
     }
     let num_app_ptr = _num_app as usize as *const usize;
     let num_app = get_num_app();
+
+    // num_app_ptr.add(1)指向下一个（8 * 8 = 64） - 4块
+    // app_0_start 64
+    // app_1_start 64
+    // app_2_start 64
+    // app_2_end   64
     let app_start = unsafe { core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1) };
     // clear i-cache first
+    // OS 将修改会被 CPU 取指的内存区域，这会使得 i-cache 中含有与内存中不一致的内容
     unsafe {
+        // 汇编指令
         asm!("fence.i");
     }
     // load apps

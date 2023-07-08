@@ -26,6 +26,9 @@ use riscv::register::{
 global_asm!(include_str!("trap.S"));
 
 /// initialize CSR `stvec` as the entry of `__alltraps`
+/// 在 RISC-V 架构中，stvec 寄存器用于设置中断和异常处理的向量表地址。
+/// 通过将 __alltraps 函数的地址作为参数传递给 stvec::write 函数，将中断和异常处理的入口点设置为 __alltraps 函数。
+/// TrapMode::Direct 表示使用直接模式，即将异常直接传递给入口点，而不进行额外的中间处理
 pub fn init() {
     extern "C" {
         fn __alltraps();
