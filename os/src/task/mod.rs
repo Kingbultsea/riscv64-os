@@ -52,11 +52,14 @@ lazy_static! {
     /// Global variable: TASK_MANAGER
     pub static ref TASK_MANAGER: TaskManager = {
         let num_app = get_num_app();
+        // 保存每个任务的寄存器
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
         }; MAX_APP_NUM];
+
         for (i, task) in tasks.iter_mut().enumerate() {
+            // 返回每个app的trap_context指针
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
         }

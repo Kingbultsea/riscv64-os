@@ -11,7 +11,7 @@
     .globl __restore
 # 4字节对齐 是 RISC-V 特权级规范的要求
     .align 2
-# 将 Trap 上下文保存在内核栈上，然后跳转到使用 Rust 编写的 trap_handler 函数完成 Trap 分发及处理
+# 将 Trap 上下文保存在内核栈上，然后跳转到使用 Rust 编写的 trap_handler 函数完成 Trap 分发及处理-
 __alltraps:
 # CSR不能直接操作，当想要对 CSR 进行操作时，需要先使用读取 CSR 的指令将 CSR 读到一个通用寄存器中，而后操作该通用寄存器，最后再使用写入 CSR 的指令将该通用寄存器的值写入到 CSR 中。
 # 在这一行之前 sp 指向用户栈， sscratch 指向内核栈，现在 sp 指向内核栈， sscratch 指向用户栈
@@ -50,6 +50,7 @@ __alltraps:
     mv a0, sp
     call trap_handler
 
+# 当 trap_handler 返回之后会从调用 trap_handler 的下一条指令开始执行，也就是从栈上的 Trap 上下文恢复的 __restore
 __restore:
     # now sp->kernel stack(after allocated), sscratch->user stack
     # restore sstatus/sepc

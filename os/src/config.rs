@@ -1,7 +1,7 @@
 //! Constants used in rCore
 
-pub const USER_STACK_SIZE: usize = 4096 * 2;
-pub const KERNEL_STACK_SIZE: usize = 4096 * 2;
+pub const USER_STACK_SIZE: usize = 4096 * 2; // 8kb
+pub const KERNEL_STACK_SIZE: usize = 4096 * 2; // 8kb
 pub const MAX_APP_NUM: usize = 4;
 pub const APP_BASE_ADDRESS: usize = 0x80400000;
 // 8bit * 0x20000
