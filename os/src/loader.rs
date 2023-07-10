@@ -35,7 +35,7 @@ impl KernelStack {
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
     pub fn push_context(&self, trap_cx: TrapContext) -> usize {
-        // 把trap_context存进内核栈
+        // 用户栈压进内核栈中
         let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
             *trap_cx_ptr = trap_cx;
@@ -119,3 +119,7 @@ pub fn init_app_cx(app_id: usize) -> usize {
         USER_STACK[app_id].get_sp(),
     ))
 }
+
+// 0x8020aef0
+// addi sp, sp, 272 增加栈后
+// 0x8020b000

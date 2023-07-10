@@ -69,7 +69,17 @@ __restore:
         .set n, n+1
     .endr
     # release TrapContext on kernel stack
+    # 栈指针增加272 字节 等于不指向kernel stack的内容了
     addi sp, sp, 34*8
     # now sp->kernel stack, sscratch->user stack
     csrrw sp, sscratch, sp
+    # sret是一个特权指令，用于从特权模式（如机器模式或超级用户模式）返回到先前的特权模式（如用户模式）
+    # 恢复用户模式的程序计数器（PC）。
+    # 恢复用户模式的堆栈指针（SP）。
+    # 恢复用户模式的状态寄存器（SR）
+    # CPU 会将当前的特权级按照 sstatus 的 SPP 字段设置为 U 或者 S ；
+    # CPU 会跳转到 sepc 寄存器指向的那条指令，然后继续执行。
     sret
+
+# sscratch会变成80213000 即user_stack[0]的地址
+# 再吧sp指向80213000

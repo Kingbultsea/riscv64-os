@@ -29,6 +29,11 @@ __switch:
         .set n, n + 1
     .endr
     # restore kernel stack of next task
+    # 设置sp可以执行__restore函数
     ld sp, 8(a1)
     ret
 
+# 0x80200470
+# x/8gx 2149777440
+
+# a1 0x80230020

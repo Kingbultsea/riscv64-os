@@ -60,6 +60,7 @@ lazy_static! {
 
         for (i, task) in tasks.iter_mut().enumerate() {
             // 返回每个app的trap_context指针
+            // todo 不懂为什么sstatus spp字段每次被初始化都被设置为 sstatus.set_spp(SPP::User);
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
         }
