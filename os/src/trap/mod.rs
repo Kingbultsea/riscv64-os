@@ -42,7 +42,6 @@ pub fn init() {
 /// handle an interrupt, exception, or system call from user space
 /// a0寄存器保存了trap之前寄存器的内容
 pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
-    println!("call trap_handler");
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
     match scause.cause() {
