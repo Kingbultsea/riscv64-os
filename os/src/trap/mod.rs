@@ -75,6 +75,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
+/// 设置sie =1 和 sstatus.sie = 1
 pub fn enable_timer_interrupt() {
     unsafe {
         sie::set_stimer();

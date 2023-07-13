@@ -60,7 +60,7 @@ fn clear_bss() {
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    println!("[kernel] Hello, world!");
+    println!("[kernel] Hello, world! {}", timer::get_time_us());
     // 保存trap之前的内容
     trap::init();
     loader::load_apps();
