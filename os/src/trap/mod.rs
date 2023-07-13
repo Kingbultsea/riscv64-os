@@ -19,7 +19,7 @@ use core::arch::global_asm;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Trap, Interrupt},
-    stval, stvec
+    stval, stvec, sie
 };
 
 // 在批处理操作系统初始化的时候，我们需要修改 stvec 寄存器来指向正确的 Trap 处理入口点。
