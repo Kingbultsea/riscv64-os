@@ -7,4 +7,5 @@ pub const APP_BASE_ADDRESS: usize = 0x80400000;
 // 8bit * 0x20000
 // 128KB
 pub const APP_SIZE_LIMIT: usize = 0x20000;
-pub const CLOCK_FREQ: usize = 10;
+
+pub use crate::board::CLOCK_FREQ;
