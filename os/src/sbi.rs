@@ -2,9 +2,9 @@
 
 use core::arch::asm;
 
+const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
 
-// const SBI_SET_TIMER: usize = 0;
 // const SBI_CONSOLE_GETCHAR: usize = 2;
 // const SBI_CLEAR_IPI: usize = 3;
 // const SBI_SEND_IPI: usize = 4;
@@ -43,4 +43,9 @@ use crate::board::QEMUExit;
 /// use sbi call to shutdown the kernel
 pub fn shutdown() -> ! {
     crate::board::QEMU_EXIT_HANDLE.exit_failure();
+}
+
+/// 由 SEE 提供的标准 SBI 接口函数，它可以用来设置 mtimecmp 的值
+pub fn set_timer(timer: usize) {
+    sbi_call(SBI_SET_TIMER, timer, 0, 0);
 }

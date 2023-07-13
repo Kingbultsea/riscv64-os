@@ -33,6 +33,7 @@ mod lang_items;
 mod loader;
 mod sbi;
 mod sync;
+mod timer;
 pub mod syscall;
 pub mod task;
 pub mod trap;
@@ -63,6 +64,11 @@ pub fn rust_main() -> ! {
     // 保存trap之前的内容
     trap::init();
     loader::load_apps();
+
+    // 防止S特权级时钟中断被屏蔽，需要进行初始化
+    trap::enable_timer_interrupt();
+    timer::set_next_trigger();
+
     task::run_first_task();
     panic!("Unreachable in rust_main!");
 }

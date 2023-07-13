@@ -34,15 +34,16 @@ pub use context::TaskContext;
 /// borrowing checks to runtime. You can see examples on how to use `inner` in
 /// existing functions on `TaskManager`.
 pub struct TaskManager {
-    /// total number of tasks
+    /// 总应用数
     num_app: usize,
-    /// use inner value to get mutable access
+    /// 管理所有任务块，记录当前运行的应用id 
+    /// 任何对于 static mut 变量的访问控制都是 unsafe 的，而我们要在编程中尽量避免使用 unsafe ，这样才能让编译器负责更多的安全性检查。
     inner: UPSafeCell<TaskManagerInner>,
 }
 
-/// Inner of Task Manager
+/// 需要设置一个inner是因为
 pub struct TaskManagerInner {
-    /// task list
+    /// 任务块
     tasks: [TaskControlBlock; MAX_APP_NUM],
     /// id of current `Running` task
     current_task: usize,
@@ -60,7 +61,6 @@ lazy_static! {
 
         for (i, task) in tasks.iter_mut().enumerate() {
             // 返回每个app的trap_context指针
-            // todo 不懂为什么sstatus spp字段每次被初始化都被设置为 sstatus.set_spp(SPP::User);
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
         }
@@ -87,6 +87,8 @@ impl TaskManager {
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
         drop(inner);
+        // 充当填充参数
+        // todo 可以传递多一个参数去asm判断
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
         unsafe {
@@ -95,27 +97,26 @@ impl TaskManager {
         panic!("unreachable in run_first_task!");
     }
 
-    /// Change the status of current `Running` task into `Ready`.
+    /// 将当前任务状态标记为TaskStatus::Ready
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Ready;
     }
 
-    /// Change the status of current `Running` task into `Exited`.
+    /// 将当前任务状态标记为TaskStatus::Exited
     fn mark_current_exited(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Exited;
     }
 
-    /// Find next task to run and return app id.
-    ///
-    /// In this case, we only return the first `Ready` task in task list.
+    /// 寻找为Ready的应用
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        (current + 1..current + self.num_app + 1)
+        (current + 1..current + self.num_app)
+             // 取余 循环一圈 1 -> 2 -> 0
             .map(|id| id % self.num_app)
             .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
     }

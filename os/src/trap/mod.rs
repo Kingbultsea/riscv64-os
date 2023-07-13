@@ -14,12 +14,12 @@
 
 mod context;
 
-use crate::syscall::syscall;
+use crate::{syscall::syscall, timer::set_next_trigger, task::suspend_current_and_run_next};
 use core::arch::global_asm;
 use riscv::register::{
     mtvec::TrapMode,
-    scause::{self, Exception, Trap},
-    stval, stvec,
+    scause::{self, Exception, Trap, Interrupt},
+    stval, stvec
 };
 
 // 在批处理操作系统初始化的时候，我们需要修改 stvec 寄存器来指向正确的 Trap 处理入口点。
@@ -58,6 +58,11 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
             panic!("[kernel] Cannot continue!");
             //run_next_app();
+        }
+        // 抢占式调度
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_trigger();
+            suspend_current_and_run_next();
         }
         _ => {
             panic!(
