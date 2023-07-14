@@ -67,6 +67,8 @@ pub fn rust_main() -> ! {
 
     // 防止S特权级时钟中断被屏蔽，需要进行初始化
     trap::enable_timer_interrupt();
+
+    // 触发Trap::Interrupt(Interrupt::SupervisorTimer)，内部继续调用set_next_trigger，以达到10ms中断一次的效果
     timer::set_next_trigger();
 
     task::run_first_task();

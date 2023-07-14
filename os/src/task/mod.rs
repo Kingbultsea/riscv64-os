@@ -115,10 +115,19 @@ impl TaskManager {
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        (current + 1..current + self.num_app)
+
+        // 因为不会包括最后一位数，需要+1
+        (current + 1..current + self.num_app + 1)
              // 取余 循环一圈 1 -> 2 -> 0
-            .map(|id| id % self.num_app)
-            .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
+            .map(|id| {
+                println!("raw id {}", id);
+                id % self.num_app
+            })
+            .find(|id| {
+                let status = inner.tasks[*id].task_status;
+                println!("running app id {} status: {:?} app_num: {} start: {} end: {}", id, status, self.num_app, current + 1, current + self.num_app);
+                status == TaskStatus::Ready
+            })
     }
 
     /// Switch current `Running` task to the task we have found,

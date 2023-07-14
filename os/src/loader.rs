@@ -97,15 +97,14 @@ pub fn load_apps() {
         // 从地址上加载，（app_start[i + 1] - app_start[i]）两个地址之间 可以算出内存大小
         let len = app_start[i + 1] - app_start[i];
         let src = unsafe { core::slice::from_raw_parts(app_start[i] as *const u8, len) };
-        println!(
-            "\r\nloading app {}\r\nsize: {}kb \r\napp_ptr: {:x}\r\napp_end: {:x}",
-            i,
-            len,
-            app_start[i],
-            app_start[i + 1],
-        );
         // 把二进制加载到指定入口 (0x80400000) - (0x80420000)
         let dst = unsafe { core::slice::from_raw_parts_mut(base_i as *mut u8, src.len()) };
+        println!(
+            "\r\nloading app {}\r\nsize: {}kb to {:x}",
+            i,
+            len,
+            base_i
+        );
         dst.copy_from_slice(src);
     }
 }

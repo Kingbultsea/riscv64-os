@@ -10,7 +10,7 @@ pub struct TaskControlBlock {
 }
 
 // 任务状态
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum TaskStatus {
     UnInit, // 未初始化
     Ready, // 准备运行

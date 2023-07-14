@@ -18,6 +18,6 @@ fn main() -> i32 {
         println!(" [{}/{}]", i + 1, HEIGHT);
         yield_();
     }
-    println!("Test write_a OK!");
+    println!("Test write_aaaa OK!");
     0
 }
