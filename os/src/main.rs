@@ -21,6 +21,10 @@
 #![no_main]
 #![feature(panic_info_message)]
 
+// 动态内存处理失败，需要panic
+#![feature(alloc_error_handler)]
+extern crate alloc;
+
 use core::arch::global_asm;
 
 #[path = "boards/qemu.rs"]
@@ -37,6 +41,7 @@ mod timer;
 pub mod syscall;
 pub mod task;
 pub mod trap;
+mod mm;
 
 // .asm 文件则通常是纯粹的原始汇编文件，不包含预处理器指令。这种文件直接包含原始的汇编指令，没有经过额外的处理或转换。
 global_asm!(include_str!("entry.asm"));
@@ -64,6 +69,9 @@ pub fn rust_main() -> ! {
     // 保存trap之前的内容
     trap::init();
     loader::load_apps();
+
+    // 初始化堆相关的工作
+    mm::init();
 
     // 防止S特权级时钟中断被屏蔽，需要进行初始化
     trap::enable_timer_interrupt();
