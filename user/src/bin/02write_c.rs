@@ -16,7 +16,6 @@ fn main() -> i32 {
             print!("C");
         }
         println!(" [{}/{}]", i + 1, HEIGHT);
-        yield_();
     }
     println!("Test write_c OK!");
     0
