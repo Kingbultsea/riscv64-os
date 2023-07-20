@@ -14,9 +14,9 @@ pub struct PhysAddr(pub usize);
 impl PhysAddr {
     /// 获取12低位 offset
     pub fn page_offset(&self) -> usize { self.0 & (PAGE_SIZE - 1) }
-    /// 4kb对齐，因为去除了offset的位数
+    /// 4kb对齐，因为是usize，不会有浮点数
     pub fn floor(&self) -> PhysPageNum { PhysPageNum(self.0 / PAGE_SIZE) }
-    /// 
+    /// 向上取整，用二进制的想法想下，只要12低位有值，则会进1（4kb对齐），usize不会计算出浮点数
     pub fn ceil(&self) -> PhysPageNum { PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
