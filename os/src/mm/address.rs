@@ -43,7 +43,7 @@ impl PhysPageNum {
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
 
-    /// todo
+    /// 512个pte 等于 一个物理页 （512 * 64）/ 8 = 4986 = 4kb
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
         let pa: PhysAddr = self.clone().into();
         unsafe {
@@ -61,9 +61,25 @@ impl PhysPageNum {
     }
 }
 
-/// 虚拟页 vpn
+/// 虚拟页 vpn 9 + 9 + 9 = 512 pte + 512 pte + 512 pte
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
+
+impl VirtPageNum {
+    /// 3级页面索引
+    pub fn indexes(&self) -> [usize; 3] {
+        let mut vpn = self.0;
+        let mut idx = [0usize; 3];
+        // 2 1 0
+        for i in (0..3).rev() {
+            // 取前面9位
+            idx[i] = vpn & 511;
+            // 去除已经被去取掉的9位
+            vpn >>= 9;
+        }
+        idx
+    }
+}
 
 
 /// 取56位地址，其余清0

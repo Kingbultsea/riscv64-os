@@ -78,14 +78,98 @@ impl PageTable {
 }
 
 /// vpn与ppn的映射，key为vpn
+/// vpn: 结点
 impl PageTable {
-    /// 建立映射
+    /// 建立映射，在所有操作后，再刷新tlb，映射不做刷新，避免耗费不必要的开销
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
-
+        // 初始化结点pte
+        if let Some(pte) = self.find_pte_crate(vpn) {
+            *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+        }
     }
 
     /// 取消映射
     pub fn unmap(&mut self, vpn: VirtPageNum) {
+        if let Some(pte) = self.find_pte(vpn) {
+            // 清空空间即可
+            *pte = PageTableEntry::empty();
+        }
+    }
 
+    /// 从根节点向下寻找所有节点，如无则创建一块物理页ppn，最后一级将返回结点 pte
+    /// 图示：http://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-full.png
+    fn find_pte_crate(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+        for i in 0..3 {
+            // idexs[i] 的值 就是pte的索引
+            // step1： 根据vpn，从ppn里面内存中寻找pte，
+            let pte = &mut ppn.get_pte_array()[idxs[i]];
+
+            // 结点，直接返回pte
+            if i == 2 {
+                result = Some(pte);
+                break;
+            }
+
+            // step2：如果pte不存在，则申请一个ppn，再等下一次循环的时候，把pte
+            if !pte.is_valid() {
+                // 申请一个物理页ppn
+                let frame = frame_alloc().unwrap();
+
+                // ppn 中 存入一个 pte
+                *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+
+                // 把申请的节点推进去记录
+                self.frames.push(frame);
+            }
+
+            // pte转换为ppn，继续寻找下一级
+            ppn = pte.ppn();
+        }
+
+        result
+    }
+
+    /// 当找不到合法的pte，不会去创建，直接返回None，其余和find_pte_crate一样
+    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+
+        for i in 0..3 {
+            let pte = &mut ppn.get_pte_array()[idxs[i]];
+
+            if !pte.is_valid() {
+                return None;
+            }
+
+            if i == 2 {
+                result = Some(pte);
+                break;
+            }
+
+            ppn = pte.ppn();
+        }
+
+        result
+    }
+
+    // 查表方式：当遇到需要查一个特定页表（非当前正处在的地址空间的页表时），
+    // 便可先通过 PageTable::from_token 新建一个页表，再调用它的 translate 方法查页表。
+
+    /// stap: mode 4 + asid 16 + ppn 44
+    /// 从satp中获取ppn
+    pub fn from_token(satp: usize) -> Self {
+        Self {
+            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
+            frames: Vec::new(),
+        }
+    }
+
+    /// vpn转换为pte，但返回的是clone过的pte
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.find_pte(vpn).map(|pte| { pte.clone() })
     }
 }

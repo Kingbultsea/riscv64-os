@@ -70,7 +70,7 @@ impl FrameAllocator for StackFrameAllocator {
 impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
-        self.current = r.0;
+        self.end = r.0;
     }
 }
 
