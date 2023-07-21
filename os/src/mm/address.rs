@@ -1,5 +1,7 @@
 use crate::config::PAGE_SIZE;
 
+use super::page_table::PageTableEntry;
+
 /// 物理地址长度
 const PA_WIDTH_SV39: usize = 56;
 /// offset
@@ -7,7 +9,7 @@ const PAGE_SIZE_BITS: usize = 12;
 /// PPN
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
-/// 物理地址（ppn + offset）
+/// 物理地址（ppn 44 + offset 12），即56位
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
@@ -29,13 +31,33 @@ pub struct VirtAddr(pub usize);
 pub struct PhysPageNum(pub usize);
 
 impl PhysPageNum {
-    pub fn get_bytes_array(&self) -> &mut [u8] {
+    /// 获取一页内存（4kb）指针，粒度为1byte
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
 
         // 若存在多个输入生命周期，且其中一个是 &self 或 &mut self，则 &self 的生命周期被赋给所有的输出生命周期
 
         // 若只有一个输入生命周期(函数参数中只有一个引用类型)，那么该生命周期会被赋给所有的输出生命周期，也就是所有返回值的生命周期都等于该输入生命周期
+        
+        // 该引用指向的数据活得跟程序一样久
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
+    }
+
+    /// todo
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512)
+        }
+    }
+
+    /// 获取一个恰好放在一个物理页帧开头的类型为 T 的数据的可变引用
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            // core::slice::from_raw_parts_mut需要填入准确的大小，而用类型就不需要
+            (pa.0 as *mut T).as_mut().unwrap()
+        }
     }
 }
 

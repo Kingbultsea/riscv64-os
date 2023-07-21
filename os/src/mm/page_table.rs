@@ -1,9 +1,11 @@
 /// 页表项
+
 use bitflags::*;
-use super::address::PhysPageNum;
+use super::{address::{PhysPageNum, VirtPageNum}, frame_allocator::{FrameTracker, frame_alloc}};
+use alloc::vec;
+use alloc::vec::Vec;
 
 bitflags! {
-    /// 44位PPN + 2位RSW + 8位Flags
     pub struct PTEFlags: u8 {
         // 仅当位1时，页表项才是合法的
         const V = 1 << 0;
@@ -26,6 +28,7 @@ bitflags! {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+/// 44位PPN + 2位RSW + 8位Flags
 pub struct PageTableEntry {
     pub bits: usize,
 }
@@ -51,5 +54,38 @@ impl PageTableEntry {
     /// 检测V位是否合法（1合法）
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
+    }
+}
+
+/// 页表节点
+/// 每个应用的地址空间都对应一个不同的多级页表，不同页表的起始地址（即页表根节点的地址）是不一样的
+/// root_ppn 作为页表唯一的区分标志
+pub struct PageTable {
+    root_ppn: PhysPageNum,
+
+    /// 保留所有的节点，包括根节点
+    frames: Vec<FrameTracker>,
+}
+
+impl PageTable {
+    pub fn new() -> Self {
+        let frame = frame_alloc().unwrap();
+        PageTable {
+            root_ppn: frame.ppn,
+            frames: vec![frame],
+        }
+    }
+}
+
+/// vpn与ppn的映射，key为vpn
+impl PageTable {
+    /// 建立映射
+    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+
+    }
+
+    /// 取消映射
+    pub fn unmap(&mut self, vpn: VirtPageNum) {
+
     }
 }
