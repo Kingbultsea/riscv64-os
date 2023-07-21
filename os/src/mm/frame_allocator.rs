@@ -83,3 +83,40 @@ pub fn init_frame_allocator() {
         .exclusive_access()
         .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(MEMORY_END).floor());
 }
+
+pub struct FrameTracker {
+    pub ppn: PhysPageNum,
+}
+
+impl FrameTracker {
+    pub fn new(ppn: PhysPageNum) -> Self {
+        // 根据ppn地址获取指针（4kb内容）
+        let bytes_array = ppn.get_bytes_array();
+        // 清空ppn的内容
+        for i in bytes_array {
+            *i = 0;
+        }
+        Self { ppn }
+    }
+}
+
+/// drop后需要回收
+impl Drop for FrameTracker {
+    fn drop(&mut self) {
+        frame_dealloc(self.ppn);
+    }
+}
+
+/// 公开给外部使用的内存管理器
+pub fn frame_alloc() -> Option<FrameTracker> {
+    FRAME_ALLOCATOR
+        .exclusive_access()
+        .alloc()
+        .map(|ppn| FrameTracker::new(ppn))
+}
+
+fn frame_dealloc(ppn: PhysPageNum) {
+    FRAME_ALLOCATOR
+        .exclusive_access()
+        .dealloc(ppn);
+}

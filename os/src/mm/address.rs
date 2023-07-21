@@ -28,6 +28,17 @@ pub struct VirtAddr(pub usize);
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
 
+impl PhysPageNum {
+    pub fn get_bytes_array(&self) -> &mut [u8] {
+        let pa: PhysAddr = (*self).into();
+
+        // 若存在多个输入生命周期，且其中一个是 &self 或 &mut self，则 &self 的生命周期被赋给所有的输出生命周期
+
+        // 若只有一个输入生命周期(函数参数中只有一个引用类型)，那么该生命周期会被赋给所有的输出生命周期，也就是所有返回值的生命周期都等于该输入生命周期
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
+    }
+}
+
 /// 虚拟页 vpn
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
@@ -55,5 +66,10 @@ impl From<PhysAddr> for PhysPageNum {
         // 转换为ppn地位12需要制为0
         assert_eq!(v.page_offset(), 0);
         v.floor()
+    }
+}
+impl From<PhysPageNum> for PhysAddr {
+    fn from(v: PhysPageNum) -> Self {
+        Self(v.0 << PAGE_SIZE_BITS)
     }
 }
