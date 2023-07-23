@@ -1,4 +1,5 @@
 use crate::config::PAGE_SIZE;
+use core::fmt::Debug;
 
 use super::page_table::PageTableEntry;
 
@@ -62,7 +63,7 @@ impl PhysPageNum {
 }
 
 /// 虚拟页 vpn 9 + 9 + 9 = 512 pte + 512 pte + 512 pte
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct VirtPageNum(pub usize);
 
 impl VirtPageNum {
@@ -111,3 +112,25 @@ impl From<PhysPageNum> for PhysAddr {
         Self(v.0 << PAGE_SIZE_BITS)
     }
 }
+
+pub trait StepByOne {
+    fn step(&mut self);
+}
+impl StepByOne for VirtPageNum {
+    fn step(&mut self) {
+        self.0 += 1;
+    }
+}
+
+#[derive(Copy, Clone)]
+/// a simple range structure for type T
+pub struct SimpleRange<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+{
+    l: T,
+    r: T,
+}
+
+/// vpn范围
+pub type VPNRange = SimpleRange<VirtPageNum>;
