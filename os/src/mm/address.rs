@@ -23,9 +23,36 @@ impl PhysAddr {
     pub fn ceil(&self) -> PhysPageNum { PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
-/// 虚拟地址（vpn + offset）
+/// 虚拟地址39（vpn + offset）= (9 + 9 + 9) + 12
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
+impl VirtAddr {
+    // 向下取整
+    pub fn floor(&self) -> VirtPageNum {
+        // 0000_0000 0000_0000 0000_0000 0000_0000 0000_0000
+        // 0000_0000 0000_0000 0001_0000 0000_0000 0000_0000
+        VirtPageNum(self.0 / PAGE_SIZE)
+    }
+    // 向上取整
+    pub fn ceil(&self) -> VirtPageNum {
+        if self.0 == 0 {
+            // todo
+            VirtPageNum(0)
+        } else {
+            // 0000_0000 0100_1000 0000_0000 0000_0000 0100_0101
+//PAGE_SIZE-1 =0000_0000 0000_0000 0000_1111 1111_1111 1111_1111
+      // 相加后 0000_0000 0100_1000 0001_0000 0000_0000 0100_0100
+// 除PAGE_SIZE 0000_0000 0100_1000 0001_0000 0000_0000 0000_0000
+            VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
+        }
+    }
+    pub fn page_offset(&self) -> usize {
+        self.0 & (PAGE_SIZE - 1)
+    }
+    pub fn aligned(&self) -> bool {
+        self.page_offset() == 0
+    }
+}
 
 /// 物理页 ppn
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -62,7 +89,7 @@ impl PhysPageNum {
     }
 }
 
-/// 虚拟页 vpn 9 + 9 + 9 = 512 pte + 512 pte + 512 pte
+/// 虚拟页 vpn 27 = 9 + 9 + 9 = 可以存 512个pte + 512个pte + 512个pte
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct VirtPageNum(pub usize);
 
@@ -130,6 +157,15 @@ where
 {
     l: T,
     r: T,
+}
+
+impl<T> SimpleRange<T> where T: StepByOne + Copy + PartialEq + PartialOrd + Debug {
+    pub fn new(start: T, end: T) -> Self {
+        Self {
+            l: start,
+            r: end
+        }
+    }
 }
 
 /// vpn范围

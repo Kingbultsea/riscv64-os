@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
 use bitflags::bitflags;
 use super::page_table::PageTable;
-use super::address::{VPNRange, VirtPageNum};
+use super::address::{VPNRange, VirtPageNum, VirtAddr};
 use super::frame_allocator::FrameTracker;
 
 pub struct MapArea {
@@ -12,6 +12,49 @@ pub struct MapArea {
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
     map_type: MapType,
     map_perm: MapPermission,
+}
+
+impl MapArea {
+    pub fn new(
+        start_va: VirtAddr,
+        end_va: VirtAddr,
+        map_type: MapType,
+        map_perm: MapPermission
+    ) -> Self {
+        // 上下取整
+        let start_vpn: VirtPageNum = start_va.floor();
+        let end_vpn: VirtPageNum = end_va.ceil();
+
+        Self {
+            vpn_range: VPNRange::new(start_vpn, end_vpn),
+            data_frames: BTreeMap::new(),
+            map_type,
+            map_perm,
+        }
+    }
+
+    /// data: start-aligned but maybe with shorter length
+    /// assume that all frames were cleared before
+    pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
+        assert_eq!(self.map_type, MapType::Framed);
+        let mut start: usize = 0;
+        let mut current_vpn = self.vpn_range.get_start();
+        let len = data.len();
+        loop {
+            let src = &data[start..len.min(start + PAGE_SIZE)];
+            let dst = &mut page_table
+                .translate(current_vpn)
+                .unwrap()
+                .ppn()
+                .get_bytes_array()[..src.len()];
+            dst.copy_from_slice(src);
+            start += PAGE_SIZE;
+            if start >= len {
+                break;
+            }
+            current_vpn.step();
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -54,7 +97,7 @@ impl MemorySet {
         }
         self.areas.push(map_area);
     }
-    /// Assume that no conflicts.
+    /// todo
     pub fn insert_framed_area(
         &mut self,
         start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission
@@ -66,8 +109,10 @@ impl MemorySet {
             permission,
         ), None);
     }
+
+    /// todo 
     pub fn new_kernel() -> Self;
-    /// Include sections in elf and trampoline and TrapContext and user stack,
-    /// also returns user_sp and entry point.
+
+    /// todo
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize);
 }
