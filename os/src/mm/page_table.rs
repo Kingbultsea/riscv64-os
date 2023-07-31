@@ -63,7 +63,7 @@ impl PageTableEntry {
 pub struct PageTable {
     root_ppn: PhysPageNum,
 
-    /// 保留所有的节点，包括根节点
+    /// 保留所有的节点，包括根节点，不包括结点
     frames: Vec<FrameTracker>,
 }
 

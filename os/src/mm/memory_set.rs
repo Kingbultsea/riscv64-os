@@ -5,6 +5,7 @@ use super::page_table::PageTable;
 use super::address::{VPNRange, VirtPageNum, VirtAddr};
 use super::frame_allocator::FrameTracker;
 
+/// 逻辑段：一段连续地址的虚拟内存
 pub struct MapArea {
     /// 虚拟页号的连续区间
     vpn_range: VPNRange,
@@ -55,8 +56,32 @@ impl MapArea {
             current_vpn.step();
         }
     }
+
+    pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+        let ppn: PhysPageNum;
+        match self.map_type {
+            MapType::Identical => {
+                ppn = PhysPageNum(vpn.0);
+            }
+            MapType::Framed => {
+                let frame = frame_alloc().unwrap();
+                ppn = frame.ppn;
+                self.data_frames.insert(vpn, frame);
+            }
+        }
+        let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
+        page_table.map(vpn, ppn, pte_flags);
+    }
+
+    pub fn map(&mut self, page_table: &mut PageTable) {
+        for vpn in self.vpn_range {
+            self.map_one(page_table, vpn);
+        }
+    }
+
 }
 
+/// 虚拟内存 映射 物理内存的方式
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum MapType {
     /// 恒等映射
