@@ -56,6 +56,17 @@ impl VirtAddr {
     }
 }
 
+impl From<VirtAddr> for usize {
+    fn from(v: VirtAddr) -> Self {
+        // todo
+        if v.0 >= (1 << (VA_WIDTH_SV39 - 1)) {
+            v.0 | (!((1 << VA_WIDTH_SV39) - 1))
+        } else {
+            v.0
+        }
+    }
+}
+
 /// 取低位39位
 impl From<usize> for VirtAddr {
     fn from(v: usize) -> Self {
@@ -122,6 +133,12 @@ impl VirtPageNum {
             vpn >>= 9;
         }
         idx
+    }
+}
+
+impl From<VirtPageNum> for VirtAddr {
+    fn from(v: VirtPageNum) -> Self {
+        Self(v.0 << PAGE_SIZE_BITS)
     }
 }
 

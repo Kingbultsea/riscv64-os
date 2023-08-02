@@ -1,9 +1,9 @@
-use crate::config::{ TRAMPOLINE, PAGE_SIZE, MEMORY_END };
+use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, USER_STACK_SIZE, TRAP_CONTEXT};
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use bitflags::bitflags;
 
-use super::address::{PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum, PhysAddr};
+use super::address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{frame_alloc, FrameTracker};
 use super::page_table::{PTEFlags, PageTable};
 
@@ -77,11 +77,13 @@ impl MapArea {
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
+            // 恒等映射
+            // todo 暂定认为：假如vpn当作ppn使用，frame_alloc后续也使用了同一个ppn会出bug
             MapType::Identical => {
                 ppn = PhysPageNum(vpn.0);
             }
 
-            // todo
+            // 随机映射，额外申请多一个实际的ppn地址
             MapType::Framed => {
                 let frame = frame_alloc().unwrap();
                 ppn = frame.ppn;
@@ -237,57 +239,101 @@ impl MemorySet {
     /// also returns user_sp and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
-        // map trampoline
+        // 将跳板插入到地址空间
         memory_set.map_trampoline();
-        // map program headers of elf, with U flag
+        // 利用xmas_elf工具处理elf数据
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
+
+        // 判断elf是否合法
+        // Magic: (7F 45 4C 46)
+        // 魔数 (Magic) 独特的常数，存放在 ELF header 的一个固定位置。当加载器将 ELF 文件加载到内存之前，
+        // 通常会查看 该位置的值是否正确，来快速确认被加载的文件是不是一个 ELF
         let elf_header = elf.header;
         let magic = elf_header.pt1.magic;
         assert_eq!(magic, [0x7f, 0x45, 0x4c, 0x46], "invalid elf!");
+
+        // 得到 program header 的数目，然后遍历所有的 program header 并将合适的区域加入到应用地址空间中
         let ph_count = elf_header.pt2.ph_count();
         let mut max_end_vpn = VirtPageNum(0);
         for i in 0..ph_count {
             let ph = elf.program_header(i).unwrap();
+
+            // 类型为Load，则表示有必要被加载到内核中
             if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
+                // 计算区域在应用地址空间中的位置
                 let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
                 let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+
+                // 区域访问方式
+                // Program Header 提供了 ELF 文件在内存中加载和执行所需的关键信息，它是操作系统加载可执行文件的重要依据。
+                // 通过解析 Program Header，操作系统可以正确地加载可执行文件，分配内存，建立程序的运行环境，并执行其中的代码。
                 let mut map_perm = MapPermission::U;
                 let ph_flags = ph.flags();
-                if ph_flags.is_read() { map_perm |= MapPermission::R; }
-                if ph_flags.is_write() { map_perm |= MapPermission::W; }
-                if ph_flags.is_execute() { map_perm |= MapPermission::X; }
-                let map_area = MapArea::new(
-                    start_va,
-                    end_va,
-                    MapType::Framed,
-                    map_perm,
-                );
+                if ph_flags.is_read() {
+                    map_perm |= MapPermission::R;
+                }
+                if ph_flags.is_write() {
+                    map_perm |= MapPermission::W;
+                }
+                if ph_flags.is_execute() {
+                    map_perm |= MapPermission::X;
+                }
+
+
+                // 这里如果并发的话，一定要管内存相对位置的，不然虚拟地址都是同一个，用了同一块物理内存，就会导致程序错误
+
+                // 为应用申请一段连续内存段（并没有实际分配）
+                let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
+
+                // 向上取整后的end_va
                 max_end_vpn = map_area.vpn_range.get_end();
+
+                // 分配实际内存
                 memory_set.push(
                     map_area,
-                    Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize])
+                    // header
+                    Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
                 );
             }
         }
+
         // map user stack with U flags
         let max_end_va: VirtAddr = max_end_vpn.into();
         let mut user_stack_bottom: usize = max_end_va.into();
-        // guard page
+
+        // 保护页面
         user_stack_bottom += PAGE_SIZE;
+
+        // 建立用户栈
         let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
-        memory_set.push(MapArea::new(
-            user_stack_bottom.into(),
-            user_stack_top.into(),
-            MapType::Framed,
-            MapPermission::R | MapPermission::W | MapPermission::U,
-        ), None);
-        // map TrapContext
-        memory_set.push(MapArea::new(
-            TRAP_CONTEXT.into(),
-            TRAMPOLINE.into(),
-            MapType::Framed,
-            MapPermission::R | MapPermission::W,
-        ), None);
-        (memory_set, user_stack_top, elf.header.pt2.entry_point() as usize)
+        memory_set.push(
+            MapArea::new(
+                user_stack_bottom.into(),
+                user_stack_top.into(),
+                MapType::Framed,
+                MapPermission::R | MapPermission::W | MapPermission::U,
+            ),
+            None,
+        );
+
+        // 存放trap上下文
+        memory_set.push(
+            MapArea::new(
+                TRAP_CONTEXT.into(),
+                TRAMPOLINE.into(),
+                MapType::Framed,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
+
+        (
+            // 地址空间
+            memory_set,
+            // 用户栈虚拟地址
+            user_stack_top,
+            // 应用入口地址
+            elf.header.pt2.entry_point() as usize,
+        )
     }
 }
