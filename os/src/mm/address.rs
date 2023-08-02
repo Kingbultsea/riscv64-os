@@ -3,6 +3,8 @@ use core::fmt::Debug;
 
 use super::page_table::PageTableEntry;
 
+/// va长度
+const VA_WIDTH_SV39: usize = 39;
 /// 物理地址长度
 const PA_WIDTH_SV39: usize = 56;
 /// offset
@@ -54,6 +56,19 @@ impl VirtAddr {
     }
 }
 
+/// 取低位39位
+impl From<usize> for VirtAddr {
+    fn from(v: usize) -> Self {
+        Self(v & ((1 << VA_WIDTH_SV39) - 1))
+    }
+}
+impl From<VirtAddr> for VirtPageNum {
+    fn from(v: VirtAddr) -> Self {
+        assert_eq!(v.page_offset(), 0);
+        v.floor()
+    }
+}
+
 /// 物理页 ppn
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
@@ -90,6 +105,7 @@ impl PhysPageNum {
 }
 
 /// 虚拟页 vpn 27 = 9 + 9 + 9 = 可以存 512个pte + 512个pte + 512个pte
+/// 寻址范围为上下256GB
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct VirtPageNum(pub usize);
 
@@ -143,6 +159,8 @@ impl From<PhysPageNum> for PhysAddr {
 pub trait StepByOne {
     fn step(&mut self);
 }
+
+/// vpn地址+1
 impl StepByOne for VirtPageNum {
     fn step(&mut self) {
         self.0 += 1;
@@ -164,6 +182,60 @@ impl<T> SimpleRange<T> where T: StepByOne + Copy + PartialEq + PartialOrd + Debu
         Self {
             l: start,
             r: end
+        }
+    }
+
+    /// 方便语义
+    pub fn get_start(&self) -> T {
+        self.l
+    }
+
+    /// 方便语义
+    pub fn get_end(&self) -> T {
+        self.r
+    }
+}
+
+impl<T> IntoIterator for SimpleRange<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+{
+    type Item = T;
+    type IntoIter = SimpleRangeIterator<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        SimpleRangeIterator::new(self.l, self.r)
+    }
+}
+
+
+/// SimpleRange的迭代器
+pub struct SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+{
+    current: T,
+    end: T,
+}
+impl<T> SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+{
+    pub fn new(l: T, r: T) -> Self {
+        Self { current: l, end: r }
+    }
+}
+impl<T> Iterator for SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current == self.end {
+            None
+        } else {
+            let t = self.current;
+            self.current.step();
+            Some(t)
         }
     }
 }

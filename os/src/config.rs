@@ -8,6 +8,9 @@ pub const APP_BASE_ADDRESS: usize = 0x8040_0000;
 // 128KB
 pub const APP_SIZE_LIMIT: usize = 0x20000;
 
+/// 跳板：内存顶部 - 4kb
+pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
+
 /// 内核堆大小 3145728 = 3mb
 pub const KERNEL_HEAP_SIZE: usize = 0x30_0000;
 

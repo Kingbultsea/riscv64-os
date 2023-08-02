@@ -11,6 +11,8 @@ riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 buddy_system_allocator = "0.6"
 bitflags = "1.2.1"
+# 解析传入的应用 ELF 数据并可以轻松取出各个部分
+xmas-elf = "0.7.0"
 
 [profile.release]
 debug = true

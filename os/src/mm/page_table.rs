@@ -6,6 +6,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 bitflags! {
+    // 8位flags（54 pte中的8位）
     pub struct PTEFlags: u8 {
         // 仅当位1时，页表项才是合法的
         const V = 1 << 0;
@@ -81,6 +82,7 @@ impl PageTable {
 /// vpn: 结点
 impl PageTable {
     /// 建立映射，在所有操作后，再刷新tlb，映射不做刷新，避免耗费不必要的开销
+    /// 即找到结点，并完善pte = ppn + flags + rsw
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         // 初始化结点pte
         if let Some(pte) = self.find_pte_crate(vpn) {
