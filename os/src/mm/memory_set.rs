@@ -1,13 +1,21 @@
-use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, USER_STACK_SIZE, TRAP_CONTEXT};
+use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::sync::UPSafeCell;
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
-use bitflags::bitflags;
 
 use super::address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{frame_alloc, FrameTracker};
 use super::page_table::{PTEFlags, PageTable};
 
+use core::arch::asm;
+
+use lazy_static::*;
+use riscv::register::satp;
+use bitflags::bitflags;
+
 extern "C" {
+    /// 内核中的内存布局 .stext段地址
     fn stext();
     fn etext();
     fn srodata();
@@ -18,6 +26,14 @@ extern "C" {
     fn ebss();
     fn ekernel();
     fn strampoline();
+}
+
+lazy_static! {
+    /// 内核地址空间实例
+    /// Arc提供共享引用
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> = Arc::new(unsafe {
+        UPSafeCell::new(MemorySet::new_kernel())
+    });
 }
 
 /// 逻辑段：一段连续地址的虚拟内存
@@ -157,6 +173,7 @@ impl MemorySet {
         );
     }
 
+    #[allow(unused)]
     /// feamed方式插入
     pub fn insert_framed_area(
         &mut self,
@@ -235,6 +252,7 @@ impl MemorySet {
         memory_set
     }
 
+    #[allow(unused)]
     /// Include sections in elf and trampoline and TrapContext and user stack,
     /// also returns user_sp and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
@@ -278,7 +296,6 @@ impl MemorySet {
                 if ph_flags.is_execute() {
                     map_perm |= MapPermission::X;
                 }
-
 
                 // 这里如果并发的话，一定要管内存相对位置的，不然虚拟地址都是同一个，用了同一块物理内存，就会导致程序错误
 
@@ -336,4 +353,44 @@ impl MemorySet {
             elf.header.pt2.entry_point() as usize,
         )
     }
+
+    // 分页模式激活
+    pub fn activate(&self) {
+        let satp = self.page_table.token();
+        unsafe {
+            // 目前用的是恒等映射，所以切换satp的指令和下一条指令是相邻的
+            satp::write(satp);
+            // 删除旧的快表
+            asm!("sfence.vma");
+        }
+    }
+}
+
+/// 检测内核地址空间的多级页表是否被正确设置
+#[allow(unused)]
+pub fn remap_test() {
+    let mut kernel_space = KERNEL_SPACE.exclusive_access();
+    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+    let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+    let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+
+    // 检测.text，不允许被写入
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_text.floor())
+        .unwrap()
+        .writable(),);
+    // 检测.rodata，不允许被写入
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_rodata.floor())
+        .unwrap()
+        .writable(),);
+    // 检测.data，不允许从数据段上取指执行
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_data.floor())
+        .unwrap()
+        .executable(),);
+    println!("remap_test passed!");
 }

@@ -56,6 +56,21 @@ impl PageTableEntry {
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
+
+    /// 检测可读性
+    pub fn readable(&self) -> bool {
+        (self.flags() & PTEFlags::R) != PTEFlags::empty()
+    }
+
+    /// 检测写入权限
+    pub fn writable(&self) -> bool {
+        (self.flags() & PTEFlags::W) != PTEFlags::empty()
+    }
+
+    /// 检测是否可执行
+    pub fn executable(&self) -> bool {
+        (self.flags() & PTEFlags::X) != PTEFlags::empty()
+    }
 }
 
 /// 页表节点
@@ -90,6 +105,7 @@ impl PageTable {
         }
     }
 
+    #[allow(unused)]
     /// 取消映射
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         if let Some(pte) = self.find_pte(vpn) {
@@ -120,14 +136,14 @@ impl PageTable {
                 // 申请一个物理页ppn
                 let frame = frame_alloc().unwrap();
 
-                // ppn 中 存入一个 pte
+                // pte 中 存入一个 ppn
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
 
                 // 把申请的节点推进去记录
                 self.frames.push(frame);
             }
 
-            // pte转换为ppn，继续寻找下一级
+            // pte转换为ppn，继续寻找下一级，后续会根据该ppn寻找下一级索引位置
             ppn = pte.ppn();
         }
 
@@ -161,6 +177,7 @@ impl PageTable {
     // 查表方式：当遇到需要查一个特定页表（非当前正处在的地址空间的页表时），
     // 便可先通过 PageTable::from_token 新建一个页表，再调用它的 translate 方法查页表。
 
+    #[allow(unused)]
     /// stap: mode 4 + asid 16 + ppn 44
     /// 从satp中获取ppn
     pub fn from_token(satp: usize) -> Self {
@@ -173,5 +190,12 @@ impl PageTable {
     /// vpn转换为pte，但返回的是clone过的pte
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| { pte.clone() })
+    }
+
+    /// 0x8000_0000_0000_0000 | self.root_ppn.0
+    /// mode 4 + asid 16 + ppn 44
+    /// 当mode设置为8的时候，SV39分页机制将被启用，所有 S/U 特权级的访存被视为一个 39(3 * 9 + 12) 位的虚拟地址
+    pub fn token(&self) -> usize {
+        8usize << 60 | self.root_ppn.0
     }
 }

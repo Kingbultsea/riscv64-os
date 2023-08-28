@@ -1,4 +1,5 @@
 # Building
+# c是压缩扩展，g的全称是IMAFD，g代表一般
 TARGET := riscv64gc-unknown-none-elf
 MODE := debug
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os

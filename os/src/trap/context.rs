@@ -9,6 +9,12 @@ pub struct TrapContext {
     pub sstatus: Sstatus,
     /// CSR sepc
     pub sepc: usize,
+    /// todo 内核页表的起始物理地址
+    pub kernel_satp: usize,
+    /// todo 表示当前应用在内核地址空间中的内核栈栈顶的虚拟地址
+    pub kernel_sp: usize,
+    /// todo 内核中trap handler入口点的虚拟地址
+    pub trap_handler: usize,
 }
 
 impl TrapContext {
