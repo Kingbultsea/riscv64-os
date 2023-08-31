@@ -22,8 +22,9 @@ __alltraps:
 # 在内核栈上保存 Trap 上下文，于是预先分配 34 X 8字节的栈(8字节是因为64位寄存器)（1个地址1个字节）
 # 栈是从高地址向低地址增长的，因此减法操作将栈指针向下移动，为栈上的新数据腾出空间
 # sp是x2寄存器（stack pointer）
-    addi sp, sp, -34*8
+    # addi sp, sp, -34*8
     # save general-purpose registers
+    # store double 存双字，rv64i only 在sp偏移1*8个字节的地方，存入x1内存中的8字节
     sd x1, 1*8(sp)
     # skip sp(x2), we will save it later
     sd x3, 3*8(sp)
@@ -45,21 +46,38 @@ __alltraps:
 # 意思就是把用户栈保存到t2寄存器中
     csrr t2, sscratch
     sd t2, 2*8(sp)
+    # kernel_satp
+    ld t0, 34*8(sp)
+    # trap_handler
+    ld t1, 36*8(sp)
+    # kernel_sp
+    ld sp, 35*8(sp)
+    csrw satp, t0
+    sfence.vma
+    # 跳转至trap_handler
+    jr t1
+
     # set input argument of trap_handler(cx: &mut TrapContext)
 # 让寄存器a0指向内核栈的栈指针
-    mv a0, sp
-    call trap_handler
+    # mv a0, sp
+    # call trap_handler
 
 # 当 trap_handler 返回之后会从调用 trap_handler 的下一条指令开始执行，也就是从栈上的 Trap 上下文恢复的 __restore
 __restore:
-    # now sp->kernel stack(after allocated), sscratch->user stack
+    # a0: *TrapContext
+    # a1: user space token
+    csrw satp, a1
+    sfence.vma
+    csrw sscratch, a0
+    mv sp, a0
+    # now sp points to TrapContext in user space, start restoring based on it
     # restore sstatus/sepc
     ld t0, 32*8(sp)
     ld t1, 33*8(sp)
-    ld t2, 2*8(sp)
+    # ld t2, 2*8(sp)
     csrw sstatus, t0
     csrw sepc, t1
-    csrw sscratch, t2
+    # csrw sscratch, t2
     # restore general-purpuse registers except sp/tp
     ld x1, 1*8(sp)
     ld x3, 3*8(sp)
@@ -68,11 +86,13 @@ __restore:
         LOAD_GP %n
         .set n, n+1
     .endr
+    # user stack
+    ld sp, 2*8(sp)
     # release TrapContext on kernel stack
     # 栈指针增加272 字节 等于不指向kernel stack的内容了
-    addi sp, sp, 34*8
+    # addi sp, sp, 34*8
     # now sp->kernel stack, sscratch->user stack
-    csrrw sp, sscratch, sp
+    # csrrw sp, sscratch, sp
     # sret是一个特权指令，用于从特权模式（如机器模式或超级用户模式）返回到先前的特权模式（如用户模式）
     # 恢复用户模式的程序计数器（PC）。
     # 恢复用户模式的堆栈指针（SP）。

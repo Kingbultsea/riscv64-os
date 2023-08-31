@@ -23,14 +23,23 @@ impl TrapContext {
         self.x[2] = sp;
     }
     /// init app context
-    pub fn app_init_context(entry: usize, sp: usize) -> Self {
+    pub fn app_init_context(
+        entry: usize,
+        sp: usize,
+        kernel_satp: usize,
+        kernel_sp: usize,
+        trap_handler: usize,
+    ) -> Self {
         let mut sstatus = sstatus::read(); // CSR sstatus
-        // sstatus寄存器中的SPP字段用于指示处理器之前的特权级别。
+                                           // sstatus寄存器中的SPP字段用于指示处理器之前的特权级别。
         sstatus.set_spp(SPP::User); //previous privilege mode: user mode
         let mut cx = Self {
             x: [0; 32],
             sstatus,
             sepc: entry, // app程序入口
+            kernel_satp,
+            kernel_sp,
+            trap_handler,
         };
         cx.set_sp(sp); // app栈 (按照上面的定义x[2]就是 sp，让sp指向app栈)
         cx // return initial Trap Context of app

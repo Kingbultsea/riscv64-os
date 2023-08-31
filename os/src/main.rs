@@ -66,8 +66,10 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world! {}", timer::get_time_us());
-    // 保存trap之前的内容
+    // 指定trap触发函数
     trap::init();
+
+    // 
     loader::load_apps();
 
     // 初始化堆相关的工作
