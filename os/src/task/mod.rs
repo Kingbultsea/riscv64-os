@@ -15,10 +15,10 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
-use crate::loader::{get_num_app, init_app_cx};
+use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
+use alloc::vec::Vec;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
@@ -36,7 +36,7 @@ pub use context::TaskContext;
 pub struct TaskManager {
     /// 总应用数
     num_app: usize,
-    /// 管理所有任务块，记录当前运行的应用id 
+    /// 管理所有任务块，记录当前运行的应用id
     /// 任何对于 static mut 变量的访问控制都是 unsafe 的，而我们要在编程中尽量避免使用 unsafe ，这样才能让编译器负责更多的安全性检查。
     inner: UPSafeCell<TaskManagerInner>,
 }
@@ -44,25 +44,48 @@ pub struct TaskManager {
 /// 需要设置一个inner是因为
 pub struct TaskManagerInner {
     /// 任务块
-    tasks: [TaskControlBlock; MAX_APP_NUM],
+    tasks: Vec<TaskControlBlock>,
+    // tasks: [TaskControlBlock; MAX_APP_NUM],
     /// id of current `Running` task
     current_task: usize,
 }
 
-lazy_static! {
-    /// Global variable: TASK_MANAGER
-    pub static ref TASK_MANAGER: TaskManager = {
-        let num_app = get_num_app();
-        // 保存每个任务的寄存器
-        let mut tasks = [TaskControlBlock {
-            task_cx: TaskContext::zero_init(),
-            task_status: TaskStatus::UnInit,
-        }; MAX_APP_NUM];
+// lazy_static! {
+//     /// Global variable: TASK_MANAGER
+//     pub static ref TASK_MANAGER: TaskManager = {
+//         let num_app = get_num_app();
+//         // 保存每个任务的寄存器
+//         let mut tasks = [TaskControlBlock {
+//             task_cx: TaskContext::zero_init(),
+//             task_status: TaskStatus::UnInit,
+//         }; MAX_APP_NUM];
 
-        for (i, task) in tasks.iter_mut().enumerate() {
-            // 返回每个app的trap_context指针
-            task.task_cx = TaskContext::goto_restore(init_app_cx(i));
-            task.task_status = TaskStatus::Ready;
+//         for (i, task) in tasks.iter_mut().enumerate() {
+//             // 返回每个app的trap_context指针
+//             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
+//             task.task_status = TaskStatus::Ready;
+//         }
+//         TaskManager {
+//             num_app,
+//             inner: unsafe {
+//                 UPSafeCell::new(TaskManagerInner {
+//                     tasks,
+//                     current_task: 0,
+//                 })
+//             },
+//         }
+//     };
+// }
+
+lazy_static! {
+    /// a `TaskManager` global instance through lazy_static!
+    pub static ref TASK_MANAGER: TaskManager = {
+        println!("init TASK_MANAGER");
+        let num_app = get_num_app();
+        println!("num_app = {}", num_app);
+        let mut tasks: Vec<TaskControlBlock> = Vec::new();
+        for i in 0..num_app {
+            tasks.push(TaskControlBlock::new(get_app_data(i), i));
         }
         TaskManager {
             num_app,
@@ -97,6 +120,13 @@ impl TaskManager {
         panic!("unreachable in run_first_task!");
     }
 
+    // todo
+    /// Get the current 'Running' task's token.
+    fn get_current_token(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[inner.current_task].get_user_token()
+    }
+
     /// 将当前任务状态标记为TaskStatus::Ready
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
@@ -118,16 +148,30 @@ impl TaskManager {
 
         // 因为不会包括最后一位数，需要+1
         (current + 1..current + self.num_app + 1)
-             // 取余 循环一圈 1 -> 2 -> 0
+            // 取余 循环一圈 1 -> 2 -> 0
             .map(|id| {
                 println!("raw id {}", id);
                 id % self.num_app
             })
             .find(|id| {
                 let status = inner.tasks[*id].task_status;
-                println!("running app id {} status: {:?} app_num: {} start: {} end: {}", id, status, self.num_app, current + 1, current + self.num_app);
+                println!(
+                    "running app id {} status: {:?} app_num: {} start: {} end: {}",
+                    id,
+                    status,
+                    self.num_app,
+                    current + 1,
+                    current + self.num_app
+                );
                 status == TaskStatus::Ready
             })
+    }
+
+    /// Change the current 'Running' task's program break
+    pub fn change_current_program_brk(&self, size: i32) -> Option<usize> {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].change_program_brk(size)
     }
 
     /// Switch current `Running` task to the task we have found,
@@ -184,4 +228,14 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
+}
+
+/// Get the current 'Running' task's token.
+pub fn current_user_token() -> usize {
+    TASK_MANAGER.get_current_token()
+}
+
+/// Change the current 'Running' task's program break
+pub fn change_program_brk(size: i32) -> Option<usize> {
+    TASK_MANAGER.change_current_program_brk(size)
 }

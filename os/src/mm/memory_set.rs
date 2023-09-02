@@ -6,13 +6,13 @@ use alloc::vec::Vec;
 
 use super::address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{frame_alloc, FrameTracker};
-use super::page_table::{PTEFlags, PageTable};
+use super::page_table::{PTEFlags, PageTable, PageTableEntry};
 
 use core::arch::asm;
 
+use bitflags::bitflags;
 use lazy_static::*;
 use riscv::register::satp;
-use bitflags::bitflags;
 
 extern "C" {
     /// 内核中的内存布局 .stext段地址
@@ -114,6 +114,29 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
+    #[allow(unused)]
+    pub fn shrink_to(&mut self, page_table: &mut PageTable, new_end: VirtPageNum) {
+        for vpn in VPNRange::new(new_end, self.vpn_range.get_end()) {
+            self.unmap_one(page_table, vpn)
+        }
+        self.vpn_range = VPNRange::new(self.vpn_range.get_start(), new_end);
+    }
+    #[allow(unused)]
+    pub fn append_to(&mut self, page_table: &mut PageTable, new_end: VirtPageNum) {
+        for vpn in VPNRange::new(self.vpn_range.get_end(), new_end) {
+            self.map_one(page_table, vpn)
+        }
+        self.vpn_range = VPNRange::new(self.vpn_range.get_start(), new_end);
+    }
+
+    #[allow(unused)]
+    pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+        if self.map_type == MapType::Framed {
+            self.data_frames.remove(&vpn);
+        }
+        page_table.unmap(vpn);
+    }
+
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.map_one(page_table, vpn);
@@ -153,6 +176,16 @@ impl MemorySet {
             page_table: PageTable::new(),
             areas: Vec::new(),
         }
+    }
+
+    // todo
+    pub fn token(&self) -> usize {
+        self.page_table.token()
+    }
+
+    // todo
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
     }
 
     /// 把data内容推进map_area，连续空间段中，page_table的作用为寻找连续空间段的位置
@@ -362,6 +395,34 @@ impl MemorySet {
             satp::write(satp);
             // 删除旧的快表
             asm!("sfence.vma");
+        }
+    }
+
+    #[allow(unused)]
+    pub fn shrink_to(&mut self, start: VirtAddr, new_end: VirtAddr) -> bool {
+        if let Some(area) = self
+            .areas
+            .iter_mut()
+            .find(|area| area.vpn_range.get_start() == start.floor())
+        {
+            area.shrink_to(&mut self.page_table, new_end.ceil());
+            true
+        } else {
+            false
+        }
+    }
+
+    #[allow(unused)]
+    pub fn append_to(&mut self, start: VirtAddr, new_end: VirtAddr) -> bool {
+        if let Some(area) = self
+            .areas
+            .iter_mut()
+            .find(|area| area.vpn_range.get_start() == start.floor())
+        {
+            area.append_to(&mut self.page_table, new_end.ceil());
+            true
+        } else {
+            false
         }
     }
 }

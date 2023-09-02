@@ -20,7 +20,6 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
-
 // 动态内存处理失败，需要panic
 #![feature(alloc_error_handler)]
 extern crate alloc;
@@ -35,13 +34,13 @@ mod console;
 mod config;
 mod lang_items;
 mod loader;
+mod mm;
 mod sbi;
 mod sync;
-mod timer;
 pub mod syscall;
 pub mod task;
+mod timer;
 pub mod trap;
-mod mm;
 
 // .asm 文件则通常是纯粹的原始汇编文件，不包含预处理器指令。这种文件直接包含原始的汇编指令，没有经过额外的处理或转换。
 global_asm!(include_str!("entry.asm"));
@@ -66,14 +65,18 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world! {}", timer::get_time_us());
-    // 指定trap触发函数
-    trap::init();
-
-    // 
-    loader::load_apps();
 
     // 初始化堆相关的工作
     mm::init();
+
+    // println!("[kernel] back to world!");
+    // mm::remap_test();
+
+    // 指定trap触发函数
+    trap::init();
+
+    //
+    // loader::load_apps();
 
     // 防止S特权级时钟中断被屏蔽，需要进行初始化
     trap::enable_timer_interrupt();

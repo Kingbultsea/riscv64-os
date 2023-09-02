@@ -6,7 +6,8 @@
 .macro LOAD_GP n
     ld x\n, \n*8(sp)
 .endm
-    .section .text
+    # 代码放置在.trampoline段
+    .section .text.trampoline
     .globl __alltraps
     .globl __restore
 # 4字节对齐 是 RISC-V 特权级规范的要求

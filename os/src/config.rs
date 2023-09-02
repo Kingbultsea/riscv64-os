@@ -2,11 +2,11 @@
 
 pub const USER_STACK_SIZE: usize = 4096 * 2; // 8kb
 pub const KERNEL_STACK_SIZE: usize = 4096 * 2; // 8kb
-pub const MAX_APP_NUM: usize = 4;
-pub const APP_BASE_ADDRESS: usize = 0x8040_0000;
+// pub const MAX_APP_NUM: usize = 4;
+// pub const APP_BASE_ADDRESS: usize = 0x8040_0000;
 // 8bit * 0x20000
 // 128KB
-pub const APP_SIZE_LIMIT: usize = 0x20000;
+// pub const APP_SIZE_LIMIT: usize = 0x20000;
 
 /// 跳板：4kb = 内存顶部 - 4kb
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
@@ -25,3 +25,10 @@ pub const MEMORY_END: usize = 0x80800000;
 pub const PAGE_SIZE: usize = 4096;
 
 pub use crate::board::CLOCK_FREQ;
+
+/// Return (bottom, top) of a kernel stack in kernel space.
+pub fn kernel_stack_position(app_id: usize) -> (usize, usize) {
+    let top = TRAMPOLINE - app_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
+    let bottom = top - KERNEL_STACK_SIZE;
+    (bottom, top)
+}

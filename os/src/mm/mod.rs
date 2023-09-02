@@ -5,6 +5,9 @@ mod frame_allocator;
 mod memory_set;
 
 pub use memory_set::KERNEL_SPACE;
+pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum, StepByOne};
+pub use memory_set::{MapPermission, MemorySet};
+pub use page_table::{translated_byte_buffer, PageTableEntry};
 
 pub fn init() {
     // 内核初始化堆
