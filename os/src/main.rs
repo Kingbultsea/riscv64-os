@@ -26,6 +26,7 @@ extern crate alloc;
 
 use core::arch::global_asm;
 
+// 可以不像平时那样建立mod.rs
 #[path = "boards/qemu.rs"]
 mod board;
 

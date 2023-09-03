@@ -2,6 +2,7 @@
 use buddy_system_allocator::LockedHeap;
 use crate::config::KERNEL_HEAP_SIZE;
 
+// 通过 #[global_allocator] 属性，你可以告诉 Rust 在全局范围内使用你指定的自定义内存分配器，而不是默认的分配器
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 

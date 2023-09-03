@@ -14,6 +14,7 @@ const SBI_CONSOLE_PUTCHAR: usize = 1;
 // const SBI_SHUTDOWN: usize = 8;
 
 ///  handle SBI call with `which` SBI_id and other arguments
+/// 和编译js的内联概念是一样的意义
 #[inline(always)]
 fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
     let mut ret;

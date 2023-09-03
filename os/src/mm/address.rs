@@ -12,7 +12,7 @@ const PAGE_SIZE_BITS: usize = 12;
 /// PPN
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
-/// 物理地址（ppn 44 + offset 12），即56位
+/// 物理地址（ppn 44 + offset 12），即56位，剩下8位用于存数据
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
@@ -25,7 +25,7 @@ impl PhysAddr {
     pub fn ceil(&self) -> PhysPageNum { PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
-/// 虚拟地址39（vpn + offset）= (9 + 9 + 9) + 12
+/// 虚拟地址39（vpn + offset）= (9 + 9 + 9) + 12，剩下的25位，是用来避免超过512g的
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 impl VirtAddr {
