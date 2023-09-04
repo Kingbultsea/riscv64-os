@@ -12,7 +12,7 @@ const PAGE_SIZE_BITS: usize = 12;
 /// PPN
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
-/// 物理地址（ppn 44 + offset 12），即56位，剩下8位用于存数据
+/// 物理地址（ppn 44 + offset 12），即56位
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
@@ -97,7 +97,7 @@ impl PhysPageNum {
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
 
-    /// 512个pte 等于 一个物理页 （512 * 64）/ 8 = 4986 = 4kb
+    /// 512个pte 等于 一个物理页 （512 * 64）/ 8 = 4986 = 4kb  （未初始化的，开始只是ppn）
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
         let pa: PhysAddr = self.clone().into();
         unsafe {
