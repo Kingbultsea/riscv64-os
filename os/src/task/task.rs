@@ -28,12 +28,6 @@ pub enum TaskStatus {
 }
 
 impl TaskControlBlock {
-    pub fn get_trap_cx(&self) -> &'static mut TrapContext {
-        self.trap_cx_ppn.get_mut()
-    }
-    pub fn get_user_token(&self) -> usize {
-        self.memory_set.token()
-    }
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
@@ -69,6 +63,15 @@ impl TaskControlBlock {
         );
         task_control_block
     }
+
+    pub fn get_trap_cx(&self) -> &'static mut TrapContext {
+        self.trap_cx_ppn.get_mut()
+    }
+
+    pub fn get_user_token(&self) -> usize {
+        self.memory_set.token()
+    }
+
     /// change the location of the program break. return None if failed.
     pub fn change_program_brk(&mut self, size: i32) -> Option<usize> {
         let old_break = self.program_brk;

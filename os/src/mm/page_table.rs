@@ -43,6 +43,7 @@ impl PageTableEntry {
         PageTableEntry { bits: 0 }
     }
 
+    /// pte转换为ppn，sv39第三级的pte的ppn
     pub fn ppn(&self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1) ).into()
     }

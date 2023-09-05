@@ -29,13 +29,14 @@ impl PhysAddr {
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 impl VirtAddr {
-    // 向下取整
+    /// 向下取整
     pub fn floor(&self) -> VirtPageNum {
         // 0000_0000 0000_0000 0000_0000 0000_0000 0000_0000
         // 0000_0000 0000_0000 0001_0000 0000_0000 0000_0000
         VirtPageNum(self.0 / PAGE_SIZE)
     }
-    // 向上取整
+
+    /// 向上取整
     pub fn ceil(&self) -> VirtPageNum {
         if self.0 == 0 {
             // todo
@@ -48,18 +49,23 @@ impl VirtAddr {
             VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
         }
     }
+
+    /// 取offset
     pub fn page_offset(&self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
+
+    /// 是否经过格式化
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
 }
 
+/// 在RV64架构中，虚拟地址的前25位需要和第38位相同，否则认定为不合法地址
 impl From<VirtAddr> for usize {
     fn from(v: VirtAddr) -> Self {
-        // todo
         if v.0 >= (1 << (VA_WIDTH_SV39 - 1)) {
+            // 检测到第38位是1开头，即前25位需要置为1
             v.0 | (!((1 << VA_WIDTH_SV39) - 1))
         } else {
             v.0

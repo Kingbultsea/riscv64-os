@@ -1,15 +1,14 @@
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::sync::UPSafeCell;
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
 
 use super::address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 use super::frame_allocator::{frame_alloc, FrameTracker};
 use super::page_table::{PTEFlags, PageTable, PageTableEntry};
 
+use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::arch::asm;
-
 use bitflags::bitflags;
 use lazy_static::*;
 use riscv::register::satp;
@@ -65,9 +64,7 @@ impl MapArea {
         }
     }
 
-    /// data: start-aligned but maybe with shorter length
-    /// assume that all frames were cleared before
-    /// 复制data内容到当前连续地址段下
+    /// 复制data内容到当前连续地址段下，每次4kb
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
@@ -121,6 +118,7 @@ impl MapArea {
         }
         self.vpn_range = VPNRange::new(self.vpn_range.get_start(), new_end);
     }
+    
     #[allow(unused)]
     pub fn append_to(&mut self, page_table: &mut PageTable, new_end: VirtPageNum) {
         for vpn in VPNRange::new(self.vpn_range.get_end(), new_end) {
@@ -286,12 +284,22 @@ impl MemorySet {
     }
 
     #[allow(unused)]
-    /// Include sections in elf and trampoline and TrapContext and user stack,
-    /// also returns user_sp and entry point.
+    /// 1. 申请一个ppn，作为应用程序的根pte，4kb
+    /// 2. TRAMPOLINE常量，即usize::Max - 4096，映射至strampoline（在链接文件中定义），todo 需要查看这样设置跳板是否正常
+    /// 3. 使用xmas_elf工具分析elf文件，获取虚拟地址和内容大小，创建maparea（即虚拟地址范围）
+    /// 4. 通过根pte，建立虚拟地址范围下的vpn与ppn映射，为每个vpn申请一个frame_track，4kb
+    /// 5. 以粒度为4kb大小，放进申请的ppn中
+    /// 内存分布如下（三级pte的ppn为实际内存页）：
+    /// 一级pte
+    /// 二级pte
+    /// (... 一共map_area个三级pte)
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
+        // 申请了一个root_ppn, 4kb，即一个frame_tracker
         let mut memory_set = Self::new_bare();
-        // 将跳板插入到地址空间
+
+        // 申请跳板内存
         memory_set.map_trampoline();
+
         // 利用xmas_elf工具处理elf数据
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
 
@@ -335,7 +343,7 @@ impl MemorySet {
                 // 为应用申请一段连续内存段（并没有实际分配）
                 let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
 
-                // 向上取整后的end_va
+                // 向下取整后的end_va
                 max_end_vpn = map_area.vpn_range.get_end();
 
                 // 分配实际内存

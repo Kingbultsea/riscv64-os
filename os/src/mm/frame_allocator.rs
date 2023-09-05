@@ -79,6 +79,8 @@ pub fn init_frame_allocator() {
         // 内核内存边界
         fn ekernel();
     }
+
+    // 内存：内核 - qemu总内存限制在8mb
     FRAME_ALLOCATOR
         .exclusive_access()
         .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(MEMORY_END).floor());
@@ -90,7 +92,7 @@ pub struct FrameTracker {
 
 impl FrameTracker {
     pub fn new(ppn: PhysPageNum) -> Self {
-        // 根据ppn地址获取指针（4kb内容）
+        // 根据ppn地址获取指针获取一页内容（4kb内容）
         let bytes_array = ppn.get_bytes_array();
         // 清空ppn的内容
         for i in bytes_array {
@@ -107,7 +109,7 @@ impl Drop for FrameTracker {
     }
 }
 
-/// 公开给外部使用的内存管理器
+/// 公开给外部使用的内存管理器，作用为向FRAME_ALLOCATOR申请一个ppn
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
