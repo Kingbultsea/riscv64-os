@@ -289,10 +289,15 @@ impl MemorySet {
     /// 3. 使用xmas_elf工具分析elf文件，获取虚拟地址和内容大小，创建maparea（即虚拟地址范围）
     /// 4. 通过根pte，建立虚拟地址范围下的vpn与ppn映射，为每个vpn申请一个frame_track，4kb
     /// 5. 以粒度为4kb大小，放进申请的ppn中
+    /// 6. 申请8kb用户栈，和步骤4是一样的
+    /// 7. 从顶部strampoline下方，申请4kb，后续用于存放trap_contxt
+    /// 8. 返回用户栈va地址，应用入口地址va，用户地址空间memory_set（内存管理器）
     /// 内存分布如下（三级pte的ppn为实际内存页）：
     /// 一级pte
     /// 二级pte
     /// (... 一共map_area个三级pte)
+    /// 4kb 用户栈
+    /// 4kb 用户栈
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         // 申请了一个root_ppn, 4kb，即一个frame_tracker
         let mut memory_set = Self::new_bare();
@@ -359,7 +364,7 @@ impl MemorySet {
         let max_end_va: VirtAddr = max_end_vpn.into();
         let mut user_stack_bottom: usize = max_end_va.into();
 
-        // 保护页面
+        // 保护页面 4kb
         user_stack_bottom += PAGE_SIZE;
 
         // 建立用户栈
