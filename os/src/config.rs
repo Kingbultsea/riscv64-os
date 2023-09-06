@@ -27,6 +27,7 @@ pub const PAGE_SIZE: usize = 4096;
 pub use crate::board::CLOCK_FREQ;
 
 /// Return (bottom, top) of a kernel stack in kernel space.
+/// todo
 pub fn kernel_stack_position(app_id: usize) -> (usize, usize) {
     let top = TRAMPOLINE - app_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
     let bottom = top - KERNEL_STACK_SIZE;

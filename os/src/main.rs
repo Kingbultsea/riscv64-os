@@ -67,16 +67,15 @@ pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world! {}", timer::get_time_us());
 
-    // 初始化堆相关的工作
+    // 初始化内存分配相关的工作
     mm::init();
 
     // println!("[kernel] back to world!");
     // mm::remap_test();
 
-    // 指定trap触发函数
+    // 指定trap触发函数，开启S模式下的trap
     trap::init();
 
-    //
     // loader::load_apps();
 
     // 防止S特权级时钟中断被屏蔽，需要进行初始化

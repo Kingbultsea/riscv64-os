@@ -99,6 +99,7 @@ impl PageTable {
 impl PageTable {
     /// 建立映射，在所有操作后，再刷新tlb，映射不做刷新，避免耗费不必要的开销
     /// 即找到结点，并完善pte = ppn + flags + rsw
+    /// 等于强行修改ppn了
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         // 初始化结点pte
         if let Some(pte) = self.find_pte_crate(vpn) {
@@ -126,12 +127,6 @@ impl PageTable {
             // step1： 根据vpn，从ppn里面内存中寻找pte，
             let pte = &mut ppn.get_pte_array()[idxs[i]];
 
-            // 结点，直接返回pte
-            if i == 2 {
-                result = Some(pte);
-                break;
-            }
-
             // step2：如果pte不存在，则申请一个ppn，再等下一次循环的时候，把pte
             if !pte.is_valid() {
                 // 申请一个物理页ppn
@@ -142,6 +137,12 @@ impl PageTable {
 
                 // 把申请的节点推进去记录
                 self.frames.push(frame);
+            }
+
+            // 结点，直接返回pte
+            if i == 2 {
+                result = Some(pte);
+                break;
             }
 
             // pte转换为ppn，继续寻找下一级，后续会根据该ppn寻找下一级索引位置

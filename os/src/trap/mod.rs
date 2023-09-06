@@ -77,7 +77,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
-/// 设置sie =1 和 sstatus.sie = 1
+/// sstatus.sie = 1，置0则屏蔽中断
 pub fn enable_timer_interrupt() {
     unsafe {
         sie::set_stimer();
@@ -104,7 +104,10 @@ pub fn trap_return() -> ! {
         fn __alltraps();
         fn __restore();
     }
+
+    // 地址相减得出 __restore内存大小
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+    
     unsafe {
         asm!(
             "fence.i",

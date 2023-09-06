@@ -100,20 +100,22 @@ lazy_static! {
 }
 
 impl TaskManager {
-    /// Run the first task in task list.
-    ///
-    /// Generally, the first task in task list is an idle task (we call it zero process later).
-    /// But in ch3, we load apps statically, so the first task is a real app.
     fn run_first_task(&self) -> ! {
         let mut inner = self.inner.exclusive_access();
         let task0 = &mut inner.tasks[0];
         task0.task_status = TaskStatus::Running;
+
+        // ra: trap_return
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
+
+        // 如果不手动 drop 的话，编译器会在 __switch 返回时，也就是当前应用被切换回来的时候才 drop，
+        // 这期间都不能修改 TaskManagerInner ，甚至不能读（因为之前是可变借用），会导致内核 panic 报错退出
         drop(inner);
+
         // 充当填充参数
         // todo 可以传递多一个参数去asm判断
         let mut _unused = TaskContext::zero_init();
-        // before this, we should drop local variables that must be dropped manually
+
         unsafe {
             __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
         }

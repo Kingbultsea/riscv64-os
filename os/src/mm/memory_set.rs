@@ -86,7 +86,7 @@ impl MapArea {
         }
     }
 
-    /// 建立vpn与ppn映射
+    /// 建立vpn与ppn映射，ppn需要申请内存
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
@@ -205,7 +205,7 @@ impl MemorySet {
     }
 
     #[allow(unused)]
-    /// feamed方式插入
+    /// framed方式插入
     pub fn insert_framed_area(
         &mut self,
         start_va: VirtAddr,
@@ -285,7 +285,7 @@ impl MemorySet {
 
     #[allow(unused)]
     /// 1. 申请一个ppn，作为应用程序的根pte，4kb
-    /// 2. TRAMPOLINE常量，即usize::Max - 4096，映射至strampoline（在链接文件中定义），todo 需要查看这样设置跳板是否正常
+    /// 2. TRAMPOLINE常量，即usize::Max - 4096作为虚拟地址，映射至strampoline（在链接文件中定义），todo 需要查看这样设置跳板是否正常
     /// 3. 使用xmas_elf工具分析elf文件，获取虚拟地址和内容大小，创建maparea（即虚拟地址范围）
     /// 4. 通过根pte，建立虚拟地址范围下的vpn与ppn映射，为每个vpn申请一个frame_track，4kb
     /// 5. 以粒度为4kb大小，放进申请的ppn中
@@ -302,7 +302,7 @@ impl MemorySet {
         // 申请了一个root_ppn, 4kb，即一个frame_tracker
         let mut memory_set = Self::new_bare();
 
-        // 申请跳板内存
+        // 申请跳板内存，TRAMPOLINE作为虚拟内存映射strampoline
         memory_set.map_trampoline();
 
         // 利用xmas_elf工具处理elf数据
@@ -379,7 +379,7 @@ impl MemorySet {
             None,
         );
 
-        // 存放trap上下文
+        // 存放trap上下文，整个跳板下方4kb是trap
         memory_set.push(
             MapArea::new(
                 TRAP_CONTEXT.into(),
